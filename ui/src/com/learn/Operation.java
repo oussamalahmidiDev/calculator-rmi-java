@@ -1,6 +1,11 @@
-package sample;
+package com.learn;
 
-public class Operation {
+import java.io.Serializable;
+
+public class Operation implements Serializable {
+    private final static long serialVersionUID = -1;
+
+
     private Integer x, y;
     private OperationType operationType;
 
@@ -76,6 +81,5 @@ public class Operation {
         MULT,
         DIV
     }
-
 
 }

@@ -1,22 +1,16 @@
-package sample;
+package com.learn;
 
 import javafx.application.Application;
 import javafx.event.ActionEvent;
-import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
-import javax.swing.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,9 +25,12 @@ public class Main extends Application {
 
     boolean currencyCalculatorToggle = false;
 
+    public static void main(String[] args) {
+        launch(args);
+    }
+
     @Override
-    public void start(Stage primaryStage) throws Exception {
-//        Parent root = FXMLLoader.load(getClass().getResource("sample.fxml"));
+    public void start(Stage primaryStage) {
         primaryStage.setTitle("Calculatrice");
 
         main.setPadding(new Insets(10, 10, 10, 10));
@@ -72,12 +69,24 @@ public class Main extends Application {
                     break;
             }
             matchFound = true;
-//                System.out.println("x = " + operationMatcher.group(1));
-//                System.out.println("y = " + operationMatcher.group(3));
-//                System.out.println("op = " + operationMatcher.group(2));
         }
 
-        resultField.setText(matchFound ? operation.calculate().toString() : "Operation invalide");
+        if (matchFound) {
+            SocketConnection<Operation, Integer> socketConnection = new SocketConnection<>(operation);
+            Thread socketConnectionThread = new Thread(socketConnection);
+            socketConnectionThread.start();
+
+            try {
+                socketConnectionThread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            System.out.println("Recieved result : " + socketConnection.result);
+
+            resultField.setText(socketConnection.result.toString());
+        } else resultField.setText("Operation invalide");
+
     }
 
     public void standardCalculator() {
@@ -164,14 +173,14 @@ public class Main extends Application {
         calculButton.setPrefWidth(100.0);
         calculButton.setOnAction(e -> {
             try {
-                handleCurrencyChangeCalc(Double.parseDouble(inputField.getText()), currencyA.getValue(), currencyB.getValue());
+                handleCurrencyChangeCalc(Double.parseDouble(inputField.getText()), Conversion.Currency.valueOf(currencyA.getValue()), Conversion.Currency.valueOf(currencyB.getValue()));
             } catch (NumberFormatException ex) {
                 resultField.setText("Valeur invalide");
             }
         });
         inputField.setOnAction(e -> {
             try {
-                handleCurrencyChangeCalc(Double.parseDouble(inputField.getText()), currencyA.getValue(), currencyB.getValue());
+                handleCurrencyChangeCalc(Double.parseDouble(inputField.getText()), Conversion.Currency.valueOf(currencyA.getValue()), Conversion.Currency.valueOf(currencyB.getValue()));
             } catch (NumberFormatException ex) {
                 resultField.setText("Valeur invalide");
             }
@@ -197,11 +206,21 @@ public class Main extends Application {
         main.getChildren().addAll(title, separator, container, resultField, switchToCurrencyLink);
     }
 
-    public static void main(String[] args) {
-        launch(args);
-    }
+    public void handleCurrencyChangeCalc(double value, Conversion.Currency currencyA, Conversion.Currency currencyB) {
+        Conversion conversion = new Conversion(value, currencyA, currencyB);
+        SocketConnection<Conversion, Double> socketConnection = new SocketConnection<>(conversion);
+        Thread socketConnectionThread = new Thread(socketConnection);
+        socketConnectionThread.start();
 
-    public void handleCurrencyChangeCalc(double value, String currencyA, String currencyB) {
-        resultField.setText(String.format("Converting %f from %s to %s", value, currencyA, currencyB));
+        try {
+            socketConnectionThread.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Recieved result : " + socketConnection.result);
+
+        resultField.setText(socketConnection.result.toString());
     }
 }
+
